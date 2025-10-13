@@ -681,7 +681,7 @@ screen.render();
 ## Object Safety
 
 ### What is Object Safety?
-A trait is "object-safe" if it can be used as a trait object (`dyn Trait`). Not all traits can be trait objects!
+A trait is "object-safe" if it can be used as a trait object (`dyn Trait`). Not all traits can be trait objects! So it means a trait is object safe if it can be used for dynamic dispatch, meaning the compiler can call its methods at runtime through a vtable without needing to know the concrete type implementing the trait
 
 ### Rules for Object Safety
 
