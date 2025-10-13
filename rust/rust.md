@@ -1422,6 +1422,12 @@ thread::spawn(move || {
 
 ## Smart Pointers
 
+Smart Pointers own or manage resource lifetimes:
+Smart pointers like Box<T>, Rc<T>, and Arc<T> primarily focus on managing the ownership and lifetime of the data they point to, often handling memory deallocation or shared ownership.
+
+Lazy Types manage initialization:
+OnceCell and similar types are designed to ensure a value is initialized exactly once, on its first access, and then provide access to that initialized value. They are about controlled, single-assignment initialization rather than general resource management.
+
 ### `Box<T>` - Heap Allocation
 - Stores data on the heap
 - Stack stores pointer to heap data
@@ -1857,7 +1863,7 @@ graph.dfs(&node1);
 
 ---
 
-### Why Rc<Mutex> Doesn't Work
+### Why Rc<Mutex> Doesn't Work in multithreads
 
 #### The Problem
 `Rc<Mutex<T>>` will compile but is a **design mistake** because you're mixing incompatible threading models.
