@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Concurrency vs Parallelism - Static Diagrams</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 40px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 40px;
+            font-size: 2.5em;
+        }
+
+        .section {
+            margin-bottom: 50px;
+        }
+
+        .section-title {
+            color: #3498db;
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        .diagram {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+
+        .diagram-title {
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+
+        .timeline {
+            position: relative;
+            margin: 20px 0;
+        }
+
+        .time-axis {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+            color: #666;
+            font-weight: bold;
+        }
+
+        .thread-line {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .thread-label {
+            width: 100px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .thread-bar {
+            flex: 1;
+            height: 40px;
+            background: #ecf0f1;
+            border-radius: 5px;
+            display: flex;
+            position: relative;
+        }
+
+        .segment {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 0.85em;
+            border-right: 2px solid white;
+        }
+
+        .io-active {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+        }
+
+        .io-waiting {
+            background: repeating-linear-gradient(
+                45deg,
+                #e74c3c,
+                #e74c3c 10px,
+                #c0392b 10px,
+                #c0392b 20px
+            );
+        }
+
+        .cpu-work {
+            background: linear-gradient(135deg, #e67e22, #d35400);
+        }
+
+        .idle {
+            background: #ecf0f1;
+            color: #95a5a6;
+        }
+
+        .async-work {
+            background: linear-gradient(135deg, #27ae60, #229954);
+        }
+
+        .key {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-top: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 5px;
+        }
+
+        .key-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .key-color {
+            width: 40px;
+            height: 25px;
+            border-radius: 3px;
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .comparison-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 10px;
+        }
+
+        .comparison-card h3 {
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .comparison-card ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .comparison-card li {
+            margin-bottom: 10px;
+            padding-left: 20px;
+            position: relative;
+        }
+
+        .comparison-card li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            font-weight: bold;
+        }
+
+        .highlight-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .highlight-box strong {
+            color: #856404;
+            font-size: 1.1em;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background: #3498db;
+            color: white;
+            font-weight: bold;
+        }
+
+        tr:hover {
+            background: #f5f5f5;
+        }
+
+        .emoji {
+            font-size: 1.5em;
+            margin-right: 10px;
+        }
+
+        .code-block {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+
+        .comment {
+            color: #95a5a6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Tokio: Concurrency vs Parallelism Visual Guide</h1>
+
+        <!-- Section 1: Blocking I/O -->
+        <div class="section">
+            <div class="section-title"><span class="emoji">⏸️</span>1. Blocking I/O (Traditional)</div>
+            
+            <div class="diagram">
+                <div class="diagram-title">Sequential Execution - One Task at a Time</div>
+                <div class="time-axis">
+                    <span>0s</span>
+                    <span>1s</span>
+                    <span>2s</span>
+                    <span>3s</span>
+                    <span>4s</span>
+                    <span>5s</span>
+                    <span>6s</span>
+                </div>
+                <div class="timeline">
+                    <div class="thread-line">
+                        <div class="thread-label">Thread 1</div>
+                        <div class="thread-bar">
+                            <div class="segment io-active" style="width: 16.67%">Task A</div>
+                            <div class="segment io-waiting" style="width: 16.67%">WAITING</div>
+                            <div class="segment io-active" style="width: 16.67%">Task B</div>
+                            <div class="segment io-waiting" style="width: 16.67%">WAITING</div>
+                            <div class="segment io-active" style="width: 16.67%">Task C</div>
+                            <div class="segment io-waiting" style="width: 16.67%">WAITING</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="highlight-box">
+                    <strong>Problem:</strong> Thread is blocked (red stripes) while waiting for I/O. 
+                    Total time = 6 seconds. CPU is idle 50% of the time! ❌
+                </div>
+            </div>
+
+            <div class="code-block">
+<span class="comment">// Blocking I/O in Rust</span>
+fn main() {
+    let data1 = fetch_url("url1");  <span class="comment">// 1s work + 1s wait = 2s</span>
+    let data2 = fetch_url("url2");  <span class="comment">// 1s work + 1s wait = 2s</span>
+    let data3 = fetch_url("url3");  <span class="comment">// 1s work + 1s wait = 2s</span>
+}
+<span class="comment">// Total: 6 seconds</span>
+            </div>
+        </div>
+
+        <!-- Section 2: Single-Thread Async -->
+        <div class="section">
+            <div class="section-title"><span class="emoji">⚡</span>2. Single-Thread Async (Concurrency)</div>
+            
+            <div class="diagram">
+                <div class="diagram-title">Concurrent Execution - One Thread, Multiple Tasks</div>
+                <div class="time-axis">
+                    <span>0s</span>
+                    <span>0.5s</span>
+                    <span>1.0s</span>
+                    <span>1.5s</span>
+                </div>
+                <div class="timeline">
+                    <div class="thread-line">
+                        <div class="thread-label">Thread 1</div>
+                        <div class="thread-bar">
+                            <div class="segment async-work" style="width: 10%">A</div>
+                            <div class="segment async-work" style="width: 10%">B</div>
+                            <div class="segment async-work" style="width: 10%">C</div>
+                            <div class="segment async-work" style="width: 10%">A</div>
+                            <div class="segment async-work" style="width: 10%">B</div>
+                            <div class="segment async-work" style="width: 10%">C</div>
+                            <div class="segment async-work" style="width: 10%">A</div>
+                            <div class="segment async-work" style="width: 10%">B</div>
+                            <div class="segment async-work" style="width: 10%">C</div>
+                            <div class="segment async-work" style="width: 10%">Done</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="highlight-box">
+                    <strong>Magic! ✨</strong> Thread switches between tasks while they wait for I/O. 
+                    Total time = 1.5 seconds. <strong>4x faster!</strong> ✅
+                </div>
+            </div>
+
+            <div class="code-block">
+<span class="comment">// Async I/O in Rust with Tokio</span>
+#[tokio::main(flavor = "current_thread")]  <span class="comment">// ONE thread!</span>
+async fn main() {
+    let (d1, d2, d3) = tokio::join!(
+        fetch_url("url1"),  <span class="comment">// Starts immediately</span>
+        fetch_url("url2"),  <span class="comment">// Starts immediately</span>
+        fetch_url("url3"),  <span class="comment">// Starts immediately</span>
+    );
+}
+<span class="comment">// Total: ~1.5 seconds (all concurrent!)</span>
+            </div>
+
+            <div class="highlight-box">
+                <strong>How does one thread do this?</strong><br>
+                While Task A waits for network response, the thread immediately switches to Task B.
+                When B waits, switch to C. When A's data arrives, switch back to A. No time wasted! 🎯
+            </div>
+        </div>
+
+        <!-- Section 3: Multi-Thread Async -->
+        <div class="section">
+            <div class="section-title"><span class="emoji">🔥</span>3. Multi-Thread Async (Concurrency + Parallelism)</div>
+            
+            <div class="diagram">
+                <div class="diagram-title">Parallel + Concurrent Execution</div>
+                <div class="time-axis">
+                    <span>0s</span>
+                    <span>0.3s</span>
+                    <span>0.6s</span>
+                    <span>0.9s</span>
+                </div>
+                <div class="timeline">
+                    <div class="thread-line">
+                        <div class="thread-label">Thread 1</div>
+                        <div class="thread-bar">
+                            <div class="segment async-work" style="width: 33%">Task A</div>
+                            <div class="segment async-work" style="width: 33%">Task A</div>
+                            <div class="segment async-work" style="width: 33%">Task A</div>
+                        </div>
+                    </div>
+                    <div class="thread-line">
+                        <div class="thread-label">Thread 2</div>
+                        <div class="thread-bar">
+                            <div class="segment async-work" style="width: 33%">Task B</div>
+                            <div class="segment async-work" style="width: 33%">Task B</div>
+                            <div class="segment async-work" style="width: 33%">Task B</div>
+                        </div>
+                    </div>
+                    <div class="thread-line">
+                        <div class="thread-label">Thread 3</div>
+                        <div class="thread-bar">
+                            <div class="segment async-work" style="width: 33%">Task C</div>
+                            <div class="segment async-work" style="width: 33%">Task C</div>
+                            <div class="segment async-work" style="width: 33%">Task C</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="highlight-box">
+                    <strong>Best of Both! 🚀</strong> Tasks run truly in parallel on different cores. 
+                    Each thread can also handle multiple async operations. Total time ≈ 0.9 seconds.
+                </div>
+            </div>
+
+            <div class="code-block">
+<span class="comment">// Multi-threaded Tokio runtime (default)</span>
+#[tokio::main]  <span class="comment">// Uses all CPU cores</span>
+async fn main() {
+    let (d1, d2, d3) = tokio::join!(
+        fetch_url("url1"),
+        fetch_url("url2"),
+        fetch_url("url3"),
+    );
+}
+<span class="comment">// Fastest! Tasks distributed across threads</span>
+            </div>
+        </div>
+
+        <!-- Section 4: CPU-Bound Comparison -->
+        <div class="section">
+            <div class="section-title"><span class="emoji">🧮</span>4. CPU-Bound: When Async Doesn't Help</div>
+            
+            <div class="diagram">
+                <div class="diagram-title">Single-Thread CPU Work (No Waiting = No Benefit from Async)</div>
+                <div class="time-axis">
+                    <span>0s</span>
+                    <span>1s</span>
+                    <span>2s</span>
+                    <span>3s</span>
+                </div>
+                <div class="timeline">
+                    <div class="thread-line">
+                        <div class="thread-label">Thread 1</div>
+                        <div class="thread-bar">
+                            <div class="segment cpu-work" style="width: 33.33%">Compute 1</div>
+                            <div class="segment cpu-work" style="width: 33.33%">Compute 2</div>
+                            <div class="segment cpu-work" style="width: 33.33%">Compute 3</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="diagram">
+                <div class="diagram-title">Multi-Thread CPU Work (True Parallelism Required)</div>
+                <div class="time-axis">
+                    <span>0s</span>
+                    <span>0.5s</span>
+                    <span>1.0s</span>
+                </div>
+                <div class="timeline">
+                    <div class="thread-line">
+                        <div class="thread-label">Core 1</div>
+                        <div class="thread-bar">
+                            <div class="segment cpu-work" style="width: 100%">Compute 1</div>
+                        </div>
+                    </div>
+                    <div class="thread-line">
+                        <div class="thread-label">Core 2</div>
+                        <div class="thread-bar">
+                            <div class="segment cpu-work" style="width: 100%">Compute 2</div>
+                        </div>
+                    </div>
+                    <div class="thread-line">
+                        <div class="thread-label">Core 3</div>
+                        <div class="thread-bar">
+                            <div class="segment cpu-work" style="width: 100%">Compute 3</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="highlight-box">
+                    <strong>Key Insight:</strong> CPU-bound work has NO waiting time. Async/await can't help.
+                    You MUST use multiple CPU cores (parallelism) to speed this up. 3x speedup with 3 cores! 💪
+                </div>
+            </div>
+
+            <div class="code-block">
+<span class="comment">// CPU-bound: Use spawn_blocking</span>
+#[tokio::main]
+async fn main() {
+    let handles: Vec<_> = (0..3).map(|i| {
+        tokio::task::spawn_blocking(move || {
+            expensive_computation(i)  <span class="comment">// Pure CPU work</span>
+        })
+    }).collect();
+    
+    for h in handles {
+        h.await.unwrap();
+    }
+}
+<span class="comment">// Uses thread pool for CPU work</span>
+            </div>
+        </div>
+
+        <!-- Section 5: Key Comparison -->
+        <div class="section">
+            <div class="section-title"><span class="emoji">📊</span>5. Quick Comparison Table</div>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>Scenario</th>
+                        <th>Blocking I/O</th>
+                        <th>Single-Thread Async</th>
+                        <th>Multi-Thread Async</th>
+                        <th>Best For</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>3 I/O tasks (1s each)</strong></td>
+                        <td>6s</td>
+                        <td>1.5s ⚡</td>
+                        <td>1.0s 🔥</td>
+                        <td>Web servers, APIs</td>
+                    </tr>
+                    <tr>
+                        <td><strong>3 CPU tasks (1s each)</strong></td>
+                        <td>3s</td>
+                        <td>3s (no help!)</td>
+                        <td>1s 💪</td>
+                        <td>Image processing, computation</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Memory per task</strong></td>
+                        <td>2MB+ (thread)</td>
+                        <td>2KB (async task)</td>
+                        <td>2KB (async task)</td>
+                        <td>High concurrency</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Max concurrent ops</strong></td>
+                        <td>~1,000</td>
+                        <td>~100,000+</td>
+                        <td>~100,000+</td>
+                        <td>WebSocket servers</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Section 6: When to Use What -->
+        <div class="section">
+            <div class="section-title"><span class="emoji">🎯</span>6. When to Use What?</div>
+            
+            <div class="comparison-grid">
+                <div class="comparison-card">
+                    <h3>Single-Thread Async</h3>
+                    <ul>
+                        <li>Pure I/O workloads</li>
+                        <li>Simpler debugging</li>
+                        <li>No race conditions</li>
+                        <li>Lower memory usage</li>
+                        <li>Testing environments</li>
+                    </ul>
+                </div>
+                
+                <div class="comparison-card">
+                    <h3>Multi-Thread Async</h3>
+                    <ul>
+                        <li>Production systems</li>
+                        <li>Mixed I/O + CPU work</li>
+                        <li>Maximum performance</li>
+                        <li>High throughput needed</li>
+                        <li>Kraken-style trading!</li>
+                    </ul>
+                </div>
+                
+                <div class="comparison-card">
+                    <h3>spawn_blocking</h3>
+                    <ul>
+                        <li>CPU-intensive tasks</li>
+                        <li>Blocking system calls</li>
+                        <li>File I/O (sometimes)</li>
+                        <li>Legacy blocking code</li>
+                        <li>Database queries</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="key">
+            <div class="key-item">
+                <div class="key-color io-active"></div>
+                <span><strong>I/O Work:</strong> Actively processing</span>
+            </div>
+            <div class="key-item">
+                <div class="key-color io-waiting"></div>
+                <span><strong>Blocked:</strong> Wasted time waiting</span>
+            </div>
+            <div class="key-item">
+                <div class="key-color cpu-work"></div>
+                <span><strong>CPU Work:</strong> Pure computation</span>
+            </div>
+            <div class="key-item">
+                <div class="key-color async-work"></div>
+                <span><strong>Async:</strong> Efficient task switching</span>
+            </div>
+        </div>
+
+        <!-- Final Summary -->
+        <div class="highlight-box" style="background: #d1ecf1; border-left-color: #0c5460;">
+            <strong style="color: #0c5460; font-size: 1.3em;">The Golden Rules 🎯</strong><br><br>
+            <strong style="color: #0c5460;">1. I/O-Bound?</strong> Use async/await. Even single-thread async is 4x+ faster!<br>
+            <strong style="color: #0c5460;">2. CPU-Bound?</strong> Use spawn_blocking or multi-threading. Async won't help.<br>
+            <strong style="color: #0c5460;">3. Mixed Workload?</strong> Multi-threaded Tokio runtime (default).<br>
+            <strong style="color: #0c5460;">4. Need to handle 10,000+ connections?</strong> Async is your only option!<br>
+        </div>
+    </div>
+</body>
+</html>

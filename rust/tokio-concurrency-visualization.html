@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tokio Concurrency vs Parallelism Visualization</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.2em;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 15px 30px;
+            font-size: 16px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+
+        .btn-blocking {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .btn-single {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+
+        .btn-multi {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+            color: white;
+        }
+
+        .btn-cpu {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            color: white;
+        }
+
+        .btn-reset {
+            background: #666;
+            color: white;
+        }
+
+        .scenario {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 25px;
+            border: 3px solid transparent;
+        }
+
+        .scenario.active {
+            border-color: #667eea;
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .scenario-title {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .scenario-desc {
+            color: #666;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .timeline {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            min-height: 150px;
+        }
+
+        .thread-row {
+            margin-bottom: 15px;
+            position: relative;
+        }
+
+        .thread-label {
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .thread-icon {
+            width: 24px;
+            height: 24px;
+            background: #667eea;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .timeline-bar {
+            display: flex;
+            gap: 5px;
+            height: 40px;
+            align-items: center;
+            position: relative;
+            background: #f0f0f0;
+            border-radius: 5px;
+            padding: 5px;
+        }
+
+        .task-block {
+            height: 30px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .task-block.animating {
+            animation: pulse 0.5s;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .task-io {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .task-cpu {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .task-waiting {
+            background: linear-gradient(135deg, #ddd 0%, #bbb 100%);
+            color: #666;
+        }
+
+        .task-blocked {
+            background: repeating-linear-gradient(
+                45deg,
+                #ff6b6b,
+                #ff6b6b 10px,
+                #ff5252 10px,
+                #ff5252 20px
+            );
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .legend {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .legend-color {
+            width: 30px;
+            height: 20px;
+            border-radius: 5px;
+        }
+
+        .progress-indicator {
+            text-align: center;
+            font-size: 1.2em;
+            color: #667eea;
+            font-weight: bold;
+            margin: 20px 0;
+            min-height: 30px;
+        }
+
+        .explanation {
+            background: #e8f4fd;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 5px;
+        }
+
+        .explanation h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .time-marker {
+            position: absolute;
+            top: -25px;
+            font-size: 11px;
+            color: #666;
+            font-weight: bold;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .task-block.appear {
+            animation: slideIn 0.3s;
+        }
+
+        .emoji {
+            font-size: 1.2em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Tokio: Concurrency vs Parallelism</h1>
+        <p class="subtitle">Interactive visualization of async runtime behavior</p>
+
+        <div class="controls">
+            <button class="btn-blocking" onclick="runBlockingIO()">
+                ⏸️ Blocking I/O (Sequential)
+            </button>
+            <button class="btn-single" onclick="runSingleThreadAsync()">
+                ⚡ Single-Thread Async
+            </button>
+            <button class="btn-multi" onclick="runMultiThreadAsync()">
+                🔥 Multi-Thread Async
+            </button>
+            <button class="btn-cpu" onclick="runCPUBound()">
+                🧮 CPU-Bound Comparison
+            </button>
+            <button class="btn-reset" onclick="reset()">
+                🔄 Reset
+            </button>
+        </div>
+
+        <div class="progress-indicator" id="progress"></div>
+
+        <!-- Blocking I/O Scenario -->
+        <div class="scenario" id="blocking-scenario">
+            <div class="scenario-title">
+                <span class="emoji">⏸️</span>
+                Blocking I/O - Traditional Approach
+            </div>
+            <div class="scenario-desc">
+                Each I/O operation blocks the thread. Must wait for each to complete before starting the next.
+                <strong>Total time = Sum of all operations</strong>
+            </div>
+            <div class="timeline">
+                <div class="thread-row">
+                    <div class="thread-label">
+                        <div class="thread-icon">T1</div>
+                        Main Thread
+                    </div>
+                    <div class="timeline-bar" id="blocking-thread"></div>
+                </div>
+            </div>
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="blocking-time">0s</div>
+                    <div class="stat-label">Total Time</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="blocking-efficiency">0%</div>
+                    <div class="stat-label">CPU Efficiency</div>
+                </div>
+            </div>
+            <div class="explanation">
+                <h3>What's happening?</h3>
+                <p>The thread is blocked during I/O waits. During red "blocked" periods, the CPU is idle doing nothing. This is wasteful!</p>
+            </div>
+        </div>
+
+        <!-- Single-Thread Async Scenario -->
+        <div class="scenario" id="single-scenario">
+            <div class="scenario-title">
+                <span class="emoji">⚡</span>
+                Single-Thread Async - Concurrent Execution
+            </div>
+            <div class="scenario-desc">
+                One thread juggles multiple I/O tasks. When one task waits, the thread switches to another.
+                <strong>Total time = Longest operation</strong>
+            </div>
+            <div class="timeline">
+                <div class="thread-row">
+                    <div class="thread-label">
+                        <div class="thread-icon">T1</div>
+                        Async Thread (switching between tasks)
+                    </div>
+                    <div class="timeline-bar" id="single-thread"></div>
+                </div>
+                <div style="margin-top: 20px; padding: 10px; background: #fff3cd; border-radius: 5px;">
+                    <strong>Task Status:</strong>
+                    <div id="task-status"></div>
+                </div>
+            </div>
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="single-time">0s</div>
+                    <div class="stat-label">Total Time</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="single-efficiency">0%</div>
+                    <div class="stat-label">CPU Efficiency</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="single-speedup">0x</div>
+                    <div class="stat-label">Speedup vs Blocking</div>
+                </div>
+            </div>
+            <div class="explanation">
+                <h3>The Magic! ✨</h3>
+                <p>While Task A waits for I/O, the thread immediately switches to Task B. No time wasted! All tasks make progress concurrently on a single thread.</p>
+            </div>
+        </div>
+
+        <!-- Multi-Thread Async Scenario -->
+        <div class="scenario" id="multi-scenario">
+            <div class="scenario-title">
+                <span class="emoji">🔥</span>
+                Multi-Thread Async - Work Stealing
+            </div>
+            <div class="scenario-desc">
+                Multiple threads share the work. If one thread is idle, it steals tasks from busy threads.
+                <strong>Best for mixed workloads</strong>
+            </div>
+            <div class="timeline">
+                <div class="thread-row">
+                    <div class="thread-label">
+                        <div class="thread-icon">T1</div>
+                        Thread 1
+                    </div>
+                    <div class="timeline-bar" id="multi-thread1"></div>
+                </div>
+                <div class="thread-row">
+                    <div class="thread-label">
+                        <div class="thread-icon">T2</div>
+                        Thread 2
+                    </div>
+                    <div class="timeline-bar" id="multi-thread2"></div>
+                </div>
+                <div class="thread-row">
+                    <div class="thread-label">
+                        <div class="thread-icon">T3</div>
+                        Thread 3
+                    </div>
+                    <div class="timeline-bar" id="multi-thread3"></div>
+                </div>
+            </div>
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="multi-time">0s</div>
+                    <div class="stat-label">Total Time</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="multi-efficiency">0%</div>
+                    <div class="stat-label">Avg CPU Efficiency</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="multi-speedup">0x</div>
+                    <div class="stat-label">Speedup vs Blocking</div>
+                </div>
+            </div>
+            <div class="explanation">
+                <h3>Work Stealing in Action 🎯</h3>
+                <p>Tasks are distributed across threads. If Thread 2 finishes early, it can steal tasks from Thread 1. This balances the load automatically!</p>
+            </div>
+        </div>
+
+        <!-- CPU-Bound Scenario -->
+        <div class="scenario" id="cpu-scenario">
+            <div class="scenario-title">
+                <span class="emoji">🧮</span>
+                CPU-Bound Tasks - Where Parallelism Matters
+            </div>
+            <div class="scenario-desc">
+                Pure computation with no I/O waits. Here, only multi-threading provides speedup.
+                <strong>Single-thread async offers NO benefit</strong>
+            </div>
+            <div class="timeline">
+                <div style="margin-bottom: 20px;">
+                    <strong>Single Thread:</strong>
+                    <div class="thread-row">
+                        <div class="timeline-bar" id="cpu-single"></div>
+                    </div>
+                </div>
+                <div>
+                    <strong>Multi-Thread (3 cores):</strong>
+                    <div class="thread-row">
+                        <div class="timeline-bar" id="cpu-multi1"></div>
+                    </div>
+                    <div class="thread-row">
+                        <div class="timeline-bar" id="cpu-multi2"></div>
+                    </div>
+                    <div class="thread-row">
+                        <div class="timeline-bar" id="cpu-multi3"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="cpu-single-time">0s</div>
+                    <div class="stat-label">Single-Thread Time</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="cpu-multi-time">0s</div>
+                    <div class="stat-label">Multi-Thread Time</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="cpu-speedup">0x</div>
+                    <div class="stat-label">Parallelism Speedup</div>
+                </div>
+            </div>
+            <div class="explanation">
+                <h3>CPU-Bound = Need Real Parallelism 💪</h3>
+                <p>When tasks are 100% CPU work with no waiting, you need multiple CPU cores working simultaneously. Async/await alone doesn't help here - you need spawn_blocking or multiple threads!</p>
+            </div>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color task-io"></div>
+                <span>I/O Operation (Active)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color task-waiting"></div>
+                <span>Waiting for I/O</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color task-blocked"></div>
+                <span>Blocked (Wasted Time)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color task-cpu"></div>
+                <span>CPU Work</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Simulation parameters
+        const TASKS = [
+            { name: 'Task A', duration: 1000, type: 'io' },
+            { name: 'Task B', duration: 800, type: 'io' },
+            { name: 'Task C', duration: 600, type: 'io' },
+            { name: 'Task D', duration: 900, type: 'io' }
+        ];
+
+        const CPU_TASKS = [
+            { name: 'Compute 1', duration: 1000, type: 'cpu' },
+            { name: 'Compute 2', duration: 1000, type: 'cpu' },
+            { name: 'Compute 3', duration: 1000, type: 'cpu' }
+        ];
+
+        let currentAnimation = null;
+
+        function reset() {
+            if (currentAnimation) {
+                clearTimeout(currentAnimation);
+            }
+            document.querySelectorAll('.timeline-bar').forEach(el => el.innerHTML = '');
+            document.querySelectorAll('.stat-value').forEach(el => el.textContent = '0s');
+            document.getElementById('progress').textContent = '';
+            document.getElementById('task-status').innerHTML = '';
+            document.querySelectorAll('.scenario').forEach(el => el.classList.remove('active'));
+        }
+
+        async function runBlockingIO() {
+            reset();
+            document.getElementById('blocking-scenario').classList.add('active');
+            document.getElementById('progress').textContent = '⏳ Running Blocking I/O...';
+
+            const timeline = document.getElementById('blocking-thread');
+            let totalTime = 0;
+            let activeTime = 0;
+
+            for (const task of TASKS) {
+                // Active phase
+                const activeBlock = createTaskBlock(task.name, task.duration, 'task-io');
+                timeline.appendChild(activeBlock);
+                await sleep(task.duration);
+                activeTime += task.duration;
+                totalTime += task.duration;
+
+                // Blocked phase (waiting)
+                const blockedBlock = createTaskBlock('BLOCKED', task.duration, 'task-blocked');
+                timeline.appendChild(blockedBlock);
+                await sleep(task.duration);
+                totalTime += task.duration;
+            }
+
+            const efficiency = ((activeTime / totalTime) * 100).toFixed(0);
+            document.getElementById('blocking-time').textContent = (totalTime / 1000).toFixed(1) + 's';
+            document.getElementById('blocking-efficiency').textContent = efficiency + '%';
+            document.getElementById('progress').textContent = '✅ Blocking I/O Complete - Notice all the wasted red time!';
+        }
+
+        async function runSingleThreadAsync() {
+            reset();
+            document.getElementById('single-scenario').classList.add('active');
+            document.getElementById('progress').textContent = '⚡ Running Single-Thread Async...';
+
+            const timeline = document.getElementById('single-thread');
+            const statusDiv = document.getElementById('task-status');
+            
+            const taskStates = TASKS.map(t => ({ 
+                ...t, 
+                remaining: t.duration, 
+                waiting: false 
+            }));
+
+            let time = 0;
+            const quantum = 100; // Time slice for each task
+            let totalTime = 0;
+            let activeTime = 0;
+
+            while (taskStates.some(t => t.remaining > 0)) {
+                for (const task of taskStates) {
+                    if (task.remaining <= 0) continue;
+
+                    // Show current task
+                    const workTime = Math.min(quantum, task.remaining);
+                    const block = createTaskBlock(task.name, workTime, 'task-io');
+                    timeline.appendChild(block);
+                    
+                    statusDiv.innerHTML = taskStates.map(t => 
+                        `<div style="margin: 5px 0;">
+                            ${t.name}: ${t.remaining > 0 ? '⏳ ' + t.remaining + 'ms left' : '✅ Done'}
+                        </div>`
+                    ).join('');
+
+                    await sleep(workTime);
+                    task.remaining -= workTime;
+                    activeTime += workTime;
+                    time += workTime;
+
+                    if (task.remaining > 0) {
+                        // Task yields - show brief waiting
+                        const waitBlock = createTaskBlock('', 20, 'task-waiting');
+                        timeline.appendChild(waitBlock);
+                        await sleep(20);
+                        time += 20;
+                    }
+                }
+            }
+
+            totalTime = time;
+            const efficiency = ((activeTime / totalTime) * 100).toFixed(0);
+            const blockingTotal = TASKS.reduce((sum, t) => sum + t.duration * 2, 0);
+            const speedup = (blockingTotal / totalTime).toFixed(1);
+
+            document.getElementById('single-time').textContent = (totalTime / 1000).toFixed(1) + 's';
+            document.getElementById('single-efficiency').textContent = efficiency + '%';
+            document.getElementById('single-speedup').textContent = speedup + 'x';
+            document.getElementById('progress').textContent = '✅ Single-Thread Async Complete - All tasks ran concurrently!';
+        }
+
+        async function runMultiThreadAsync() {
+            reset();
+            document.getElementById('multi-scenario').classList.add('active');
+            document.getElementById('progress').textContent = '🔥 Running Multi-Thread Async...';
+
+            const threads = [
+                document.getElementById('multi-thread1'),
+                document.getElementById('multi-thread2'),
+                document.getElementById('multi-thread3')
+            ];
+
+            const taskQueue = [...TASKS];
+            const threadPromises = threads.map((timeline, idx) => 
+                runThreadTasks(timeline, taskQueue, idx)
+            );
+
+            const startTime = Date.now();
+            await Promise.all(threadPromises);
+            const totalTime = Date.now() - startTime;
+
+            const blockingTotal = TASKS.reduce((sum, t) => sum + t.duration * 2, 0);
+            const speedup = (blockingTotal / totalTime).toFixed(1);
+
+            document.getElementById('multi-time').textContent = (totalTime / 1000).toFixed(1) + 's';
+            document.getElementById('multi-efficiency').textContent = '85%';
+            document.getElementById('multi-speedup').textContent = speedup + 'x';
+            document.getElementById('progress').textContent = '✅ Multi-Thread Async Complete - Tasks distributed across threads!';
+        }
+
+        async function runThreadTasks(timeline, taskQueue, threadIdx) {
+            const delay = threadIdx * 150; // Stagger starts
+            await sleep(delay);
+
+            while (taskQueue.length > 0) {
+                const task = taskQueue.shift();
+                if (!task) break;
+
+                const block = createTaskBlock(task.name, task.duration, 'task-io');
+                timeline.appendChild(block);
+                await sleep(task.duration);
+
+                // Small gap between tasks
+                const gap = createTaskBlock('', 50, 'task-waiting');
+                timeline.appendChild(gap);
+                await sleep(50);
+            }
+        }
+
+        async function runCPUBound() {
+            reset();
+            document.getElementById('cpu-scenario').classList.add('active');
+            document.getElementById('progress').textContent = '🧮 Running CPU-Bound Comparison...';
+
+            // Single thread
+            const singleTimeline = document.getElementById('cpu-single');
+            for (const task of CPU_TASKS) {
+                const block = createTaskBlock(task.name, task.duration, 'task-cpu');
+                singleTimeline.appendChild(block);
+                await sleep(task.duration);
+            }
+            const singleTotal = CPU_TASKS.reduce((sum, t) => sum + t.duration, 0);
+            document.getElementById('cpu-single-time').textContent = (singleTotal / 1000).toFixed(1) + 's';
+
+            // Multi-thread (parallel)
+            const multiTimelines = [
+                document.getElementById('cpu-multi1'),
+                document.getElementById('cpu-multi2'),
+                document.getElementById('cpu-multi3')
+            ];
+
+            const startTime = Date.now();
+            await Promise.all(CPU_TASKS.map((task, idx) => {
+                const timeline = multiTimelines[idx];
+                return (async () => {
+                    const block = createTaskBlock(task.name, task.duration, 'task-cpu');
+                    timeline.appendChild(block);
+                    await sleep(task.duration);
+                })();
+            }));
+            const multiTotal = Date.now() - startTime;
+
+            document.getElementById('cpu-multi-time').textContent = (multiTotal / 1000).toFixed(1) + 's';
+            document.getElementById('cpu-speedup').textContent = (singleTotal / multiTotal).toFixed(1) + 'x';
+            document.getElementById('progress').textContent = '✅ CPU-Bound Complete - Only parallelism helps here!';
+        }
+
+        function createTaskBlock(label, duration, className) {
+            const block = document.createElement('div');
+            block.className = `task-block ${className} appear`;
+            block.style.minWidth = `${duration / 10}px`;
+            block.style.flex = `0 0 ${duration / 10}px`;
+            block.textContent = label;
+            block.title = `${label}: ${duration}ms`;
+            return block;
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // Auto-run single-thread demo on load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                document.getElementById('progress').textContent = '👆 Click any button above to see different runtime behaviors!';
+            }, 500);
+        });
+    </script>
+</body>
+</html>
