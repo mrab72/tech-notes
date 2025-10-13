@@ -736,6 +736,8 @@ let cloned = obj.clone_box();  // Works!
 
 #### ❌ Rule 3: No Associated Functions (without `self`)
 
+The trait Factory is not object safe because its method fn create() -> Self has no self parameter, making it an associated function rather than a method. In Rust, only trait methods that take self (i.e., &self, &mut self, or self) can be called on trait objects via dynamic dispatch. Associated functions like create do not have a receiver, so there's no way to know which concrete type to create when calling the function on a trait object like Box<dyn Factory>; the compiler would lose track of what Self actually is in that context.​
+
 ```rust
 trait Factory {
     fn create() -> Self;  // No self parameter - NOT object safe!
