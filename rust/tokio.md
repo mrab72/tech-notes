@@ -1,4 +1,4 @@
-# Tokio Runtime - Preparation
+# Tokio Runtime Interview Guide Preparation
 
 ## Quick Overview
 
@@ -8,7 +8,7 @@
 - Timers and utilities
 - Multi-threaded or single-threaded execution
 
- High-performance trading systems need to handle thousands of concurrent connections efficiently. Tokio enables this without blocking threads.
+**Why companies cares**: High-performance trading systems need to handle thousands of concurrent connections efficiently. Tokio enables this without blocking threads.
 
 ---
 
@@ -215,7 +215,7 @@ async fn main() {
 | `broadcast` | Multiple consumers, all receive same message |
 | `watch` | Latest value, old values dropped |
 
-**For Kraken**: You'd use `mpsc` for order processing pipelines, `broadcast` for market data distribution.
+You'd use `mpsc` for order processing pipelines, `broadcast` for market data distribution.
 
 ---
 
@@ -247,7 +247,7 @@ async fn fetch_data() -> String {
 }
 ```
 
-**Use cases for Kraken:**
+**Use cases for payments:**
 - Timeout on API requests
 - Graceful shutdown signals
 - Racing multiple data sources
@@ -292,7 +292,7 @@ async fn main() {
 
 ---
 
-## Real-World Kraken Interview Scenarios
+## Real-World Scenarios
 
 ### Scenario 1: WebSocket Server
 
@@ -388,7 +388,7 @@ async fn main() {
 }
 ```
 
-**For Kraken**: Rate limit API requests to exchanges.
+**For payments**: Rate limit API requests to exchanges.
 
 ---
 
@@ -408,7 +408,7 @@ async fn fetch_with_timeout(url: &str) -> Result<String, Box<dyn std::error::Err
 
 #[tokio::main]
 async fn main() {
-    match fetch_with_timeout("https://api.kraken.com/prices").await {
+    match fetch_with_timeout("https://api.poof.com/prices").await {
         Ok(data) => println!("Success: {}", data),
         Err(e) => eprintln!("Failed: {}", e),
     }
@@ -460,7 +460,7 @@ async fn main() {
 }
 ```
 
-**For Kraken**: Critical for safely shutting down trading systems without losing orders.
+Critical for safely shutting down trading systems without losing orders.
 
 ---
 
@@ -693,7 +693,7 @@ async fn main() {
 
 ---
 
-## Kraken-Specific Scenarios
+## Payment-Specific Scenarios
 
 ### Order Matching Engine
 
@@ -768,7 +768,7 @@ use futures_util::{StreamExt, SinkExt};
 
 #[tokio::main]
 async fn main() {
-    let (ws_stream, _) = connect_async("wss://ws.kraken.com/")
+    let (ws_stream, _) = connect_async("wss://ws.payment.com/")
         .await
         .expect("Failed to connect");
     
