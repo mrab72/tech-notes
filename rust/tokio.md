@@ -1,4 +1,4 @@
-# Tokio Runtime Interview Guide - Kraken Preparation
+# Tokio Runtime - Preparation
 
 ## Quick Overview
 
