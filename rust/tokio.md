@@ -8,7 +8,7 @@
 - Timers and utilities
 - Multi-threaded or single-threaded execution
 
-**Why Kraken cares**: High-performance trading systems need to handle thousands of concurrent connections efficiently. Tokio enables this without blocking threads.
+ High-performance trading systems need to handle thousands of concurrent connections efficiently. Tokio enables this without blocking threads.
 
 ---
 
