@@ -152,6 +152,60 @@ tokio::task::spawn_blocking(|| {
 
 This cooperative multitasking model is why async Rust is so efficient - thousands of concurrent operations without thousands of threads!
 
+#### What Happens If You Block in a Tokio Task?
+
+**Blocking in a Tokio task is bad!** Here's what happens:
+
+#### The Problem
+
+When you block a task (e.g., with `std::thread::sleep`, synchronous file I/O, or CPU-intensive work), you **block the entire worker thread**:
+
+```rust
+tokio::spawn(async {
+    // ⚠️ BAD - blocks the worker thread!
+    std::thread::sleep(Duration::from_secs(10));
+    // All other tasks scheduled on this thread are stuck waiting
+});
+```
+
+#### Consequences
+
+- **Thread starvation**: That worker thread can't run ANY other tasks
+- **Reduced parallelism**: If you have 4 cores and block all 4 threads, your entire runtime is frozen
+- **Poor performance**: Thousands of tasks may be waiting while threads are blocked
+- **Deadlocks**: Can cause deadlocks if all threads are blocked waiting for work that can't progress
+
+#### The Solution: Use `spawn_blocking`
+
+For blocking operations, use `spawn_blocking` which runs them on a separate thread pool:
+
+```rust
+tokio::spawn(async {
+    // ✅ GOOD - runs on blocking thread pool
+    let result = tokio::task::spawn_blocking(|| {
+        std::thread::sleep(Duration::from_secs(10));
+        // or: std::fs::read_to_string("file.txt")
+        // or: expensive_cpu_computation()
+        42
+    }).await.unwrap();
+});
+```
+
+#### When to Use `spawn_blocking`
+
+- **Synchronous I/O**: `std::fs` operations
+- **CPU-intensive work**: Long computations without `.await` points
+- **Blocking APIs**: Database drivers, C libraries, etc.
+- **`std::thread::sleep`**: Use `tokio::time::sleep` instead, or `spawn_blocking`
+
+### Rule of Thumb
+
+In async Tokio code:
+- **Never block** - always `.await` or use `spawn_blocking`
+- Use `tokio::time::sleep`, not `std::thread::sleep`
+- Use `tokio::fs`, not `std::fs`
+- Use async database drivers when possible
+- 
 **Critical Interview Points:**
 - Spawned tasks run **concurrently**, not necessarily in parallel
 - Tasks are **lightweight** (not OS threads)
