@@ -110,6 +110,47 @@ async fn main() {
     println!("Results: {}, {}", result1, result2);
 }
 ```
+ `tokio::spawn` **does not spawn threads** in the traditional sense. Instead, it spawns **asynchronous tasks** onto Tokio's runtime.
+
+#### What `tokio::spawn` Does
+
+- **Spawns a task**: Creates a new asynchronous task that runs concurrently with other tasks
+- **Schedules on the runtime**: The task is scheduled on Tokio's executor, which manages a thread pool
+- **Green threads/lightweight**: Tasks are much lighter than OS threads - you can spawn thousands or even millions of them
+
+#### The Underlying Thread Pool
+
+Tokio's runtime typically uses a **work-stealing thread pool** with a number of threads equal to the number of CPU cores. All spawned tasks share this pool of threads:
+
+```rust
+#[tokio::main]
+async fn main() {
+    // This spawns a task, not a thread
+    tokio::spawn(async {
+        println!("Running on the Tokio runtime");
+    });
+}
+```
+
+#### Key Differences from `std::thread::spawn`
+
+- **`std::thread::spawn`**: Creates a new OS thread (1:1 mapping)
+- **`tokio::spawn`**: Creates a task that multiplexes onto existing threads (M:N mapping)
+
+#### When Threads Are Actually Created
+
+Tokio creates threads when you:
+- Initialize the runtime (e.g., `#[tokio::main]` or `Runtime::new()`)
+- Use `spawn_blocking` for CPU-intensive or blocking operations
+
+```rust
+// This DOES use a separate thread from a blocking thread pool
+tokio::task::spawn_blocking(|| {
+    // Blocking or CPU-intensive work
+});
+```
+
+This cooperative multitasking model is why async Rust is so efficient - thousands of concurrent operations without thousands of threads!
 
 **Critical Interview Points:**
 - Spawned tasks run **concurrently**, not necessarily in parallel
