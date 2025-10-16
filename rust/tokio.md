@@ -438,51 +438,34 @@ async fn handle_client(mut socket: TcpStream) {
 ### Scenario 2: Rate Limiter
 
 ```rust
-use tokio::time::{sleep, Duration, Instant};
-use std::sync::Arc;
 use tokio::sync::Semaphore;
-
-struct RateLimiter {
-    semaphore: Arc<Semaphore>,
-    rate: u32,
-    interval: Duration,
-}
-
-impl RateLimiter {
-    fn new(rate: u32, interval: Duration) -> Self {
-        RateLimiter {
-            semaphore: Arc::new(Semaphore::new(rate as usize)),
-            rate,
-            interval,
-        }
-    }
-    
-    async fn acquire(&self) {
-        let _permit = self.semaphore.acquire().await.unwrap();
-        
-        tokio::spawn({
-            let sem = self.semaphore.clone();
-            let interval = self.interval;
-            async move {
-                sleep(interval).await;
-                // Permit automatically released when dropped
-            }
-        });
-    }
-}
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
-    let limiter = RateLimiter::new(10, Duration::from_secs(1));
-    
+    // Only allow 10 concurrent HTTP requests
+    let semaphore = Arc::new(Semaphore::new(10));
+    let mut handles = vec![];
+
     for i in 0..100 {
-        limiter.acquire().await;
-        println!("Request {}", i);
-        // Make API call
+        let sem = semaphore.clone();
+        let handle = tokio::spawn(async move {
+            // Wait for a permit
+            let _permit = sem.acquire().await.unwrap();
+            
+            // Make HTTP request (only 10 at a time)
+            make_request(i).await;
+            
+            // Permit automatically released when dropped
+        });
+        handles.push(handle);
+    }
+
+    for handle in handles {
+        handle.await.unwrap();
     }
 }
 ```
-
 **For payments**: Rate limit API requests to exchanges.
 
 ---
